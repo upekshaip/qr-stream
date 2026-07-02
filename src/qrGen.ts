@@ -38,6 +38,34 @@ export function buildFramePlan(
   return frames;
 }
 
+/**
+ * Build a frame plan carrying ONLY the given chunk sequence numbers — used
+ * for operator-assisted selective retransmission. The link is simplex, so
+ * the receiver's missing-chunk list travels via the human operator; the
+ * sender then streams just those chunks (plus the META frame) instead of
+ * cycling the whole file.
+ */
+export function buildFramePlanForSeqs(
+  chunks: Uint8Array[],
+  meta: FileMeta,
+  gridSize: GridSize,
+  seqs: number[]
+): FramePlan[] {
+  const perFrame = gridSize * gridSize;
+  const total = chunks.length;
+  const wanted = [...new Set(seqs)].filter((s) => s >= 0 && s < total).sort((a, b) => a - b);
+  const frames: FramePlan[] = [{ frameIndex: -1, isMeta: true, cells: [encodeMetaPayload(meta)] }];
+  let f = 0;
+  for (let start = 0; start < wanted.length; start += perFrame) {
+    const cells: string[] = [];
+    for (const seq of wanted.slice(start, start + perFrame)) {
+      cells.push(encodeDataPayload(seq, total, chunks[seq]));
+    }
+    frames.push({ frameIndex: f++, isMeta: false, cells });
+  }
+  return frames;
+}
+
 /** Render a single QR payload onto its own square canvas. */
 async function renderQr(text: string, ecLevel: EcLevel, modulePx: number): Promise<HTMLCanvasElement> {
   const canvas = document.createElement("canvas");

@@ -25,7 +25,13 @@ export { bytesToBase64, base64ToBytes, sha256Hex, bitDiff } from "./binary";
 export { crc32, crc32Hex } from "./crc32";
 
 // QR generation + frame composition (TX side)
-export { buildFramePlan, composeFrame, estimateCycleMs, type FramePlan } from "./qrGen";
+export {
+  buildFramePlan,
+  buildFramePlanForSeqs,
+  composeFrame,
+  estimateCycleMs,
+  type FramePlan,
+} from "./qrGen";
 
 // Transmit engine
 export { TxEngine, type TxEngineOptions, type TxProgress } from "./txEngine";
@@ -36,7 +42,7 @@ export { QrScanner, drawSourceToCanvas, type ScanResult } from "./qrDetect";
 // Encryption (optional)
 export { encryptFile, decryptFile, verifyPassword } from "./crypto";
 
-// Configuration presets
+// Configuration presets + capacity guards
 export {
   DEFAULT_CONFIG,
   GRID_OPTIONS,
@@ -44,6 +50,10 @@ export {
   EC_OPTIONS,
   CHUNK_OPTIONS,
   SWEEP,
+  QR_BYTE_CAPACITY,
+  dataPayloadLength,
+  isChunkEcValid,
+  maxChunkBytesForEc,
 } from "./config";
 
 // Types
