@@ -1,0 +1,56 @@
+{
+  "name": "qr-stream",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Adaptive QR streaming: offline screen-to-camera file transfer over animated QR codes with configurable grid size, frame interval, CRC32/SHA-256 integrity, and optional AES-256-GCM encryption.",
+  "license": "MIT",
+  "author": "Upeksha Perera <upekshaip@gmail.com> (https://upekshaip.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/upekshaip/qr-stream.git",
+    "directory": "packages/qr-stream"
+  },
+  "homepage": "https://qr.upekshaip.com",
+  "keywords": [
+    "qr",
+    "qr-code",
+    "streaming",
+    "screen-camera",
+    "air-gap",
+    "offline",
+    "file-transfer",
+    "optical",
+    "data-transmission"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "jsqr": "^1.4.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0"
+  }
+}
