@@ -31,6 +31,7 @@ export {
   composeFrame,
   estimateCycleMs,
   type FramePlan,
+  type FramePlanOptions,
 } from "./qrGen";
 
 // Transmit engine

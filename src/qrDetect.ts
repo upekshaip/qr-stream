@@ -67,27 +67,46 @@ export class QrScanner {
   private scanWithJsQr(canvas: HTMLCanvasElement): string[] {
     const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
     const n = Math.max(1, this.gridHint);
-    const out: string[] = [];
-    const cellW = Math.floor(canvas.width / n);
-    const cellH = Math.floor(canvas.height / n);
-    for (let r = 0; r < n; r++) {
-      for (let c = 0; c < n; c++) {
-        const img = ctx.getImageData(c * cellW, r * cellH, cellW, cellH);
-        const res = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
-        if (res && res.data) out.push(res.data);
+    const out = new Set<string>();
+
+    // Always try the whole frame first: META frames are a single QR filling
+    // the canvas even when data frames use an N×N grid — slicing would cut
+    // that QR apart and the receiver could never read the file metadata.
+    const full = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const fullRes = jsQR(full.data, full.width, full.height, { inversionAttempts: "dontInvert" });
+    if (fullRes && fullRes.data) out.add(fullRes.data);
+
+    if (n > 1) {
+      const cellW = Math.floor(canvas.width / n);
+      const cellH = Math.floor(canvas.height / n);
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          const img = ctx.getImageData(c * cellW, r * cellH, cellW, cellH);
+          const res = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+          if (res && res.data) out.add(res.data);
+        }
       }
     }
-    return out;
+    return [...out];
   }
 }
 
-/** Draw a video frame (or any image source) into a reusable canvas. */
+/**
+ * Draw a video frame (or any image source) into a reusable canvas.
+ * `maxDim` downscales the capture so the longest side does not exceed it —
+ * jsQR decode time scales with pixel count, and phones capturing at ≥1080p
+ * otherwise decode slower than the transmit frame rate.
+ */
 export function drawSourceToCanvas(
   source: HTMLVideoElement,
-  canvas: HTMLCanvasElement
+  canvas: HTMLCanvasElement,
+  maxDim?: number
 ): HTMLCanvasElement {
-  const w = source.videoWidth || 1280;
-  const h = source.videoHeight || 720;
+  const sw = source.videoWidth || 1280;
+  const sh = source.videoHeight || 720;
+  const scale = maxDim ? Math.min(1, maxDim / Math.max(sw, sh)) : 1;
+  const w = Math.round(sw * scale);
+  const h = Math.round(sh * scale);
   if (canvas.width !== w) canvas.width = w;
   if (canvas.height !== h) canvas.height = h;
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;

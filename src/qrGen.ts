@@ -15,6 +15,17 @@ export interface FramePlan {
   cells: string[];
 }
 
+export interface FramePlanOptions {
+  /**
+   * Repeat the META frame before every K-th data frame (in addition to the
+   * one at the start of the cycle). Slow receivers — phone cameras decoding
+   * below the frame rate — can miss a META that airs only once per cycle;
+   * without META the receiver cannot verify or name the file. Undefined
+   * keeps the original single-META-per-cycle behavior.
+   */
+  metaEvery?: number;
+}
+
 /**
  * Build the ordered list of frames for one full cycle of a file.
  * Cells within a data frame carry consecutive chunk sequence numbers.
@@ -22,13 +33,17 @@ export interface FramePlan {
 export function buildFramePlan(
   chunks: Uint8Array[],
   meta: FileMeta,
-  gridSize: GridSize
+  gridSize: GridSize,
+  opts: FramePlanOptions = {}
 ): FramePlan[] {
   const perFrame = gridSize * gridSize;
   const total = chunks.length;
-  const frames: FramePlan[] = [{ frameIndex: -1, isMeta: true, cells: [encodeMetaPayload(meta)] }];
+  const metaFrame = (): FramePlan => ({ frameIndex: -1, isMeta: true, cells: [encodeMetaPayload(meta)] });
+  const metaEvery = opts.metaEvery && opts.metaEvery > 0 ? opts.metaEvery : Infinity;
+  const frames: FramePlan[] = [metaFrame()];
   let f = 0;
   for (let start = 0; start < total; start += perFrame) {
+    if (f > 0 && f % metaEvery === 0) frames.push(metaFrame());
     const cells: string[] = [];
     for (let c = start; c < Math.min(start + perFrame, total); c++) {
       cells.push(encodeDataPayload(c, total, chunks[c]));
