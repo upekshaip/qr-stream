@@ -31,8 +31,9 @@ The tag push triggers the **"Publish to GitHub Packages"** workflow
 (`.github/workflows/publish.yml`), which builds, runs the full test suite via
 `prepublishOnly`, and uploads — using the built-in `GITHUB_TOKEN`, so there
 are no secrets to configure. (You can also run it manually from the Actions
-tab.) Verify: the new version appears under github.com/upekshaip?tab=packages
-within a minute.
+tab.) Both the CI and publish workflows run on Node 22 with actions v5
+(`engines` stays `>=20`). Verify: the new version appears under
+github.com/upekshaip?tab=packages within a minute.
 
 After a release, update the app:
 
