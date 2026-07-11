@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>qr-stream — receiver</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
+      #controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+      #cam { background: #000; border-radius: 8px; max-width: 100%; }
+      #status { font-family: ui-monospace, monospace; color: #555; }
+      button { padding: 0.4rem 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Receiver</h1>
+    <div id="controls">
+      <button id="start">Start camera</button>
+      <button id="stop" disabled>Stop</button>
+      <span id="status">idle</span>
+    </div>
+    <video id="cam" playsinline muted></video>
+    <script type="module" src="/receiver.js"></script>
+  </body>
+</html>

@@ -4,7 +4,8 @@ export default defineConfig({
   entry: ["src/index.ts"],
   format: ["esm", "cjs"],
   dts: true,
-  sourcemap: true,
+  // no source maps in the published tarball (see PUBLISHING.md)
+  sourcemap: false,
   clean: true,
   target: "es2020",
   platform: "browser",

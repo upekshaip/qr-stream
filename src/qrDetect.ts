@@ -11,12 +11,21 @@
 
 import jsQR from "jsqr";
 
+/** Result of decoding one captured frame. */
 export interface ScanResult {
+  /** deduplicated raw payload strings of every QR found in the frame */
   values: string[];
+  /** wall-clock decode time for this frame */
   processingMs: number;
   engine: "barcode-detector" | "jsqr";
 }
 
+/**
+ * Multi-QR frame decoder. Uses the native BarcodeDetector when available
+ * (Chromium — finds all codes in one pass) and falls back to jsQR, which
+ * decodes a full-frame pass first (so the single-QR META frame always has a
+ * chance) and then one pass per grid cell when `gridHint > 1`.
+ */
 export class QrScanner {
   private detector: BarcodeDetector | null = null;
   private ready: Promise<void>;
@@ -54,7 +63,8 @@ export class QrScanner {
     if (this.detector) {
       try {
         const codes = await this.detector.detect(canvas);
-        const values = codes.map((c) => c.rawValue).filter((v) => v.length > 0);
+        // Dedupe: the detector can report the same code twice in one frame.
+        const values = [...new Set(codes.map((c) => c.rawValue).filter((v) => v.length > 0))];
         return { values, processingMs: performance.now() - t0, engine: "barcode-detector" };
       } catch {
         // fall through to jsQR
@@ -81,7 +91,11 @@ export class QrScanner {
       const cellH = Math.floor(canvas.height / n);
       for (let r = 0; r < n; r++) {
         for (let c = 0; c < n; c++) {
-          const img = ctx.getImageData(c * cellW, r * cellH, cellW, cellH);
+          // The last row/column extends to the canvas edge so remainder
+          // pixels from the integer division are never dropped.
+          const w = c === n - 1 ? canvas.width - c * cellW : cellW;
+          const h = r === n - 1 ? canvas.height - r * cellH : cellH;
+          const img = ctx.getImageData(c * cellW, r * cellH, w, h);
           const res = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
           if (res && res.data) out.add(res.data);
         }
@@ -91,6 +105,19 @@ export class QrScanner {
   }
 }
 
+/** Image sources accepted by drawSourceToCanvas. */
+export type CaptureSource = HTMLVideoElement | HTMLCanvasElement | HTMLImageElement | ImageBitmap;
+
+function sourceSize(source: CaptureSource): { w: number; h: number } {
+  if (typeof HTMLVideoElement !== "undefined" && source instanceof HTMLVideoElement) {
+    return { w: source.videoWidth || 1280, h: source.videoHeight || 720 };
+  }
+  if (typeof HTMLImageElement !== "undefined" && source instanceof HTMLImageElement) {
+    return { w: source.naturalWidth, h: source.naturalHeight };
+  }
+  return { w: source.width, h: source.height };
+}
+
 /**
  * Draw a video frame (or any image source) into a reusable canvas.
  * `maxDim` downscales the capture so the longest side does not exceed it —
@@ -98,12 +125,11 @@ export class QrScanner {
  * otherwise decode slower than the transmit frame rate.
  */
 export function drawSourceToCanvas(
-  source: HTMLVideoElement,
+  source: CaptureSource,
   canvas: HTMLCanvasElement,
   maxDim?: number
 ): HTMLCanvasElement {
-  const sw = source.videoWidth || 1280;
-  const sh = source.videoHeight || 720;
+  const { w: sw, h: sh } = sourceSize(source);
   const scale = maxDim ? Math.min(1, maxDim / Math.max(sw, sh)) : 1;
   const w = Math.round(sw * scale);
   const h = Math.round(sh * scale);

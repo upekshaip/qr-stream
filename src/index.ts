@@ -3,10 +3,13 @@
 // Screen-camera data transfer over animated QR codes: file segmentation,
 // self-describing simplex protocol (CRC32 per chunk, SHA-256 per file),
 // spatial multiplexing (N x N grids), a drift-corrected transmit engine,
-// multi-QR detection, and optional AES-256-GCM encryption.
+// multi-QR detection, optional AES-256-GCM encryption, and a headless
+// channel simulator for protocol research.
 //
-// Browser-only: uses Canvas, Web Crypto, and (optionally) BarcodeDetector.
-// Import it in client-side code; nothing runs at import time in Node/SSR.
+// Browser-first: rendering/detection use Canvas and (optionally)
+// BarcodeDetector at call time. Nothing touches browser APIs at import time,
+// so the module is safe to import in Node/SSR — and the protocol, crypto,
+// and simulation layers are fully usable there.
 
 // Protocol + reassembly
 export {
@@ -30,18 +33,40 @@ export {
   buildFramePlanForSeqs,
   composeFrame,
   estimateCycleMs,
+  QrCapacityError,
   type FramePlan,
   type FramePlanOptions,
 } from "./qrGen";
 
 // Transmit engine
-export { TxEngine, type TxEngineOptions, type TxProgress } from "./txEngine";
+export { TxEngine, cycleOrder, type TxEngineOptions, type TxProgress } from "./txEngine";
 
 // QR detection (RX side)
-export { QrScanner, drawSourceToCanvas, type ScanResult } from "./qrDetect";
+export {
+  QrScanner,
+  drawSourceToCanvas,
+  type ScanResult,
+  type CaptureSource,
+} from "./qrDetect";
 
 // Encryption (optional)
-export { encryptFile, decryptFile, verifyPassword } from "./crypto";
+export {
+  encryptFile,
+  decryptFile,
+  verifyPassword,
+  PBKDF2_ITERATIONS_DEFAULT,
+} from "./crypto";
+
+// Headless simulation (research + CI)
+export {
+  simulateTransfer,
+  planStructure,
+  mulberry32,
+  type SimulateOptions,
+  type SimulationResult,
+  type CycleStats,
+  type ChannelModel,
+} from "./simulate";
 
 // Configuration presets + capacity guards
 export {
@@ -56,6 +81,9 @@ export {
   isChunkEcValid,
   maxChunkBytesForEc,
 } from "./config";
+
+// Version
+export { VERSION } from "./version";
 
 // Types
 export type {

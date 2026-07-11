@@ -14,6 +14,7 @@ const CRC_TABLE: Uint32Array = (() => {
   return table;
 })();
 
+/** CRC-32 (IEEE 802.3) of `bytes` as an unsigned 32-bit integer. */
 export function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;
   for (let i = 0; i < bytes.length; i++) {
@@ -22,6 +23,7 @@ export function crc32(bytes: Uint8Array): number {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
+/** CRC-32 as 8 lowercase hex chars (zero-padded) — the wire format. */
 export function crc32Hex(bytes: Uint8Array): string {
   return crc32(bytes).toString(16).padStart(8, "0");
 }

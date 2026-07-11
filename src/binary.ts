@@ -2,6 +2,7 @@
 
 const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+/** Encode bytes as standard base64 (RFC 4648, with padding). */
 export function bytesToBase64(bytes: Uint8Array): string {
   let out = "";
   let i = 0;
@@ -26,6 +27,11 @@ const B64_LOOKUP: Int16Array = (() => {
   return t;
 })();
 
+/**
+ * Decode base64 to bytes. Tolerant: whitespace and non-alphabet characters
+ * are skipped rather than throwing — a garbled QR decode yields wrong bytes
+ * (caught by CRC-32) instead of an exception in the scan loop.
+ */
 export function base64ToBytes(b64: string): Uint8Array {
   let len = b64.length;
   while (len > 0 && b64[len - 1] === "=") len--;
@@ -47,6 +53,7 @@ export function base64ToBytes(b64: string): Uint8Array {
   return out.subarray(0, o);
 }
 
+/** SHA-256 of `bytes` as a lowercase hex string (Web Crypto). */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const digest = await crypto.subtle.digest("SHA-256", ab);

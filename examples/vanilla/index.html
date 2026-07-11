@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>qr-stream — vanilla example</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem; line-height: 1.6; }
+      a { font-size: 1.2rem; }
+    </style>
+  </head>
+  <body>
+    <h1>qr-stream — vanilla example</h1>
+    <p>
+      Open the <a href="/sender.html">sender</a> on one device and the
+      <a href="/receiver.html">receiver</a> on another (or in a second window,
+      with the receiver's webcam pointed at the sender's screen).
+    </p>
+    <ol>
+      <li>Sender: pick a file, press <b>Start</b> — it plays a looping QR stream.</li>
+      <li>Receiver: press <b>Start camera</b>, aim at the sender's screen.</li>
+      <li>The file downloads automatically once every chunk has been captured.</li>
+    </ol>
+  </body>
+</html>

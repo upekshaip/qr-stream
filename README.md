@@ -1,36 +1,68 @@
-# qr-stream
+# @upekshaip/qr-stream
 
-Adaptive QR streaming for **offline screen-to-camera file transfer**. Encode any file into a looping animation of QR codes on one device's screen, and reconstruct it bit-perfectly on another device using only its camera — no network, no cables, no pairing.
+**Offline screen-to-camera file transfer over animated QR codes.**
 
-Built as the core artifact of the research project *"An Adaptive QR Streaming Framework for Offline Screen–Camera Data Transmission"* (NSBM Green University). Live demo: [qr.upekshaip.com](https://qr.upekshaip.com).
+One device plays a file as a looping animation of QR codes; another points a
+camera at the screen and reassembles the file — no network, no cables, no
+pairing. The link is strictly one-way light, which makes it useful for
+air-gapped machines, kiosk provisioning, data diodes, and anywhere radios are
+unavailable or unwelcome.
+
+`qr-stream` is the protocol and engine behind the research project
+*"An Adaptive QR Streaming Framework for Offline Screen–Camera Data
+Transmission"* — try the live demo at **[qr.upekshaip.com](https://qr.upekshaip.com)**.
 
 ## Features
 
-- **Spatial multiplexing** — 1×1, 2×2, or 3×3 QR grids per frame (1–9 codes at once)
+- **Self-describing simplex protocol** — every QR carries its own sequence
+  metadata, so chunks arrive in any order across any number of cycles
+- **Spatial multiplexing** — 1×1, 2×2, or 3×3 QR grids per frame
 - **Temporal multiplexing** — configurable frame interval (100–1000 ms)
-- **Self-describing simplex protocol** — every QR carries its own sequence index; frames can arrive in any order, across any cycle, with no back-channel
-- **Integrity built in** — CRC32 per chunk, SHA-256 over the whole file
-- **Cyclic redundancy** — loop the stream; the receiver fills gaps on later passes
-- **Optional encryption** — AES-256-GCM with PBKDF2 key derivation (100k iterations)
-- **Drift-corrected TX engine** — render-ahead scheduler keeps frame timing precise with flat memory use
-- **Multi-QR detection** — native `BarcodeDetector` where available, jsQR fallback elsewhere
+- **Integrity built in** — CRC-32 per chunk, SHA-256 per file
+- **Phase-lock-proof cycling** — optional per-cycle frame shuffle so slow
+  receivers converge instead of stalling ([why](docs/adaptive-tuning.md#slow-receivers))
+- **Selective retransmission** — build a stream carrying only the chunks a
+  receiver reports missing
+- **Optional AES-256-GCM encryption** — PBKDF2 key derivation with the
+  iteration count carried in-stream
+- **Two detection engines** — native `BarcodeDetector` (Chromium) with a jsQR
+  fallback everywhere else
+- **Headless simulation** — model receivers and channel loss in Node, no
+  camera required ([docs](docs/api/simulation.md))
+- **Capacity guards** — typed `QrCapacityError` at plan time instead of a
+  silent render failure
 
 ## Install
 
 ```bash
-npm install qr-stream
+npm install @upekshaip/qr-stream
 ```
 
-> **Browser-only.** The library uses Canvas, Web Crypto, `MediaDevices`, and (optionally) `BarcodeDetector`. Importing it in Node/SSR is safe — nothing touches browser APIs at import time — but every function must run client-side (e.g. inside a `"use client"` component or behind a dynamic import).
+> **Private preview.** Until the accompanying research article is published,
+> the package is hosted privately on **GitHub Packages**, so installing needs
+> a GitHub personal access token with the `read:packages` scope. Put these
+> two lines in your project's (or user) `.npmrc`, then install normally:
+>
+> ```ini
+> @upekshaip:registry=https://npm.pkg.github.com
+> //npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
+> ```
+>
+> The runnable [examples](examples/) skip the registry entirely (local
+> `file:` dependency), so a repo clone is enough to try everything. The
+> public npmjs.com release will need no token.
 
-## Quick start
+Requires Node ≥ 20 for Node-side use (global Web Crypto). Rendering
+(`TxEngine`, `composeFrame`) and detection (`QrScanner`) need a browser;
+the protocol, crypto, and simulation layers run anywhere. Nothing touches
+browser APIs at import time, so the package is SSR-safe.
 
-### Sender (TX)
+## Quick start — sender
 
 ```ts
 import {
-  segment, sha256Hex, buildFramePlan, TxEngine, PROTOCOL,
-} from "qr-stream";
+  PROTOCOL, segment, sha256Hex, buildFramePlan, TxEngine,
+} from "@upekshaip/qr-stream";
 
 const bytes = new Uint8Array(await file.arrayBuffer());
 const chunkBytes = 512;
@@ -45,103 +77,187 @@ const meta = {
   chunkBytes,
 };
 
-const frames = buildFramePlan(chunks, meta, 2); // 2 → 2×2 grid
+const frames = buildFramePlan(chunks, meta, 2 /* 2×2 grid */, {
+  metaEvery: 16,   // repeat META so slow receivers catch it fast
+  ecLevel: "M",    // validate every payload against QR capacity now
+});
 
-const engine = new TxEngine(canvasEl); // your on-screen <canvas>
+const engine = new TxEngine(document.querySelector("canvas")!);
 await engine.start({
   frames,
   intervalMs: 300,
   gridSize: 2,
   sidePx: 768,
   ecLevel: "M",
-  loop: true, // cycle until the receiver has every chunk
-  onProgress: ({ frameIndex, slot, cycles }) => { /* update UI */ },
+  loop: true,
+  rotatePerCycle: true, // shuffle each cycle — slow receivers can't phase-lock
+  onError: (err) => console.error(err),
 });
-// engine.stop() to end
+// engine.stop() ends the run instantly; onState("stopped") always fires
 ```
 
-### Receiver (RX)
+## Quick start — receiver
 
 ```ts
 import {
   QrScanner, drawSourceToCanvas, parsePayload, Reassembler, sha256Hex,
-} from "qr-stream";
-
-const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-videoEl.srcObject = stream;
-await videoEl.play();
+} from "@upekshaip/qr-stream";
 
 const scanner = new QrScanner();
+scanner.gridHint = 2;          // used only by the jsQR fallback
 await scanner.whenReady();
-
 const reasm = new Reassembler();
 const scratch = document.createElement("canvas");
 
 while (!reasm.complete) {
-  drawSourceToCanvas(videoEl, scratch);
+  drawSourceToCanvas(video, scratch, 1280); // downscale: faster mobile decode
   const { values } = await scanner.scan(scratch);
-  for (const raw of values) {
-    const p = parsePayload(raw);
+  for (const value of values) {
+    const p = parsePayload(value);
     if (p.type === "META") reasm.setMeta(p.meta);
     else if (p.type === "DATA" && p.crcOk) reasm.add(p.seq, p.total, p.bytes);
   }
-  await new Promise((r) => setTimeout(r, 0)); // yield to the UI
+  await new Promise((r) => setTimeout(r, 0));
 }
 
 const bytes = reasm.reconstruct();
-const ok = reasm.meta && (await sha256Hex(bytes)) === reasm.meta.sha256;
+const ok = (await sha256Hex(bytes)) === reasm.meta!.sha256;
 ```
 
-### Encryption (optional)
+## Encryption (optional)
 
 ```ts
-import { encryptFile, verifyPassword, decryptFile } from "qr-stream";
+import { encryptFile, verifyPassword, decryptFile } from "@upekshaip/qr-stream";
 
-// TX: encrypt before segmenting; put encMeta into FileMeta.encryption
+// sender: stream `ciphertext` instead of the plaintext and put `encMeta`
+// into FileMeta.encryption
 const { ciphertext, encMeta } = await encryptFile(bytes, password);
 
-// RX: after reassembly
-if (meta.encryption) {
-  if (await verifyPassword(password, meta.encryption)) {
-    const plain = await decryptFile(cipherBytes, password, meta.encryption);
-  }
+// receiver: cheap password pre-check, then authenticated decryption
+if (await verifyPassword(password, meta.encryption!)) {
+  const plain = await decryptFile(assembled, password, meta.encryption!);
 }
 ```
 
-## Wire protocol
+The PBKDF2 iteration count (default 600 000) travels inside `encMeta`, so
+future changes never break old captures. Read the threat model in
+[docs/security.md](docs/security.md) before relying on it.
 
-Every QR payload is a self-describing pipe-delimited string (`|` never occurs in base64, so parsing is unambiguous):
+## Simulation (no camera needed)
 
-| Frame | Format |
+```ts
+import { simulateTransfer, mulberry32 } from "@upekshaip/qr-stream";
+
+// a receiver decoding every 2nd frame, 95% per-cell detection
+const r = simulateTransfer({
+  totalChunks: 64, gridSize: 1, metaEvery: 16, rotatePerCycle: true,
+  channel: { samplingPeriod: 2, cellDetectProb: 0.95 },
+  random: mulberry32(42), // reproducible
+});
+console.log(r.cyclesToComplete, r.perCycle);
+```
+
+## Recipes
+
+**Selective retransmission** — the receiver reports what's missing (a human
+can relay it: read it aloud, type it in); the sender streams only those
+chunks. The stream is one-way, so the operator *is* the back-channel:
+
+```ts
+// receiver side: which chunks are still missing?
+const missing = reasm.missing(); // e.g. [5, 12, 33, 34, 35]
+
+// sender side: stream META + just those chunks (reuse the SAME chunks/meta
+// as the original run — re-segmenting with other settings would shift
+// chunk boundaries)
+import { buildFramePlanForSeqs } from "@upekshaip/qr-stream";
+const frames = buildFramePlanForSeqs(chunks, meta, 1, missing, { ecLevel: "M" });
+await engine.start({ frames, intervalMs: 300, gridSize: 1, sidePx: 768, ecLevel: "M", loop: true });
+```
+
+**Validate settings before streaming** — chunk size and EC level trade off
+against QR capacity; check combinations up front instead of catching
+`QrCapacityError` later:
+
+```ts
+import { isChunkEcValid, maxChunkBytesForEc, QR_BYTE_CAPACITY } from "@upekshaip/qr-stream";
+
+isChunkEcValid(1024, "H");   // false — 1024 B never fits at EC H
+maxChunkBytesForEc("H");     // largest chunk that fits at EC H
+QR_BYTE_CAPACITY.M;          // raw v40 byte capacity at EC M
+```
+
+**Reproducible runs** — inject a seeded PRNG anywhere randomness appears, so
+an experiment (or a bug report) can be replayed exactly:
+
+```ts
+import { mulberry32 } from "@upekshaip/qr-stream";
+
+await engine.start({ ...opts, rotatePerCycle: true, random: mulberry32(42) });
+simulateTransfer({ ...simOpts, random: mulberry32(42) });
+```
+
+**Estimate transfer time before starting**:
+
+```ts
+import { estimateCycleMs } from "@upekshaip/qr-stream";
+
+const cycleMs = estimateCycleMs(frames.length, intervalMs);
+// a clean capture completes in ~1 cycle; slow/occluded receivers need a few
+```
+
+## Wire protocol (qrstream/1)
+
+| Frame | Payload |
 |---|---|
 | META | `M\|<base64(JSON FileMeta)>` |
 | DATA | `D\|<seq>\|<total>\|<crc32hex>\|<base64(chunk)>` |
 
-`FileMeta` carries name, size, SHA-256, chunk count/size, and optional encryption parameters (PBKDF2 salt, AES-GCM IV, password verifier hash).
+The pipe character never occurs in base64, so parsing is unambiguous. Full
+grammar, field tables, and compatibility rules: [docs/protocol.md](docs/protocol.md).
 
-## API surface
+## Browser support
 
-| Export | Kind | Purpose |
+| Capability | Chromium (desktop/Android) | Safari / Firefox |
 |---|---|---|
-| `segment(bytes, chunkBytes)` | fn | Split a file into chunks |
-| `encodeMetaPayload` / `encodeDataPayload` | fn | Build QR payload strings |
-| `parsePayload(raw)` | fn | Parse + CRC-validate a decoded QR string |
-| `Reassembler` | class | Order-independent chunk buffer → file |
-| `buildFramePlan(chunks, meta, gridSize)` | fn | Plan one full TX cycle |
-| `composeFrame(canvas, frame, gridSize, sidePx, ec)` | fn | Draw an N×N QR grid frame |
-| `TxEngine` | class | Drift-corrected frame scheduler |
-| `QrScanner` | class | Multi-QR detect (BarcodeDetector → jsQR) |
-| `drawSourceToCanvas(video, canvas)` | fn | Capture a video frame |
-| `crc32` / `crc32Hex` / `sha256Hex` | fn | Integrity primitives |
-| `bytesToBase64` / `base64ToBytes` | fn | Binary codec |
-| `encryptFile` / `verifyPassword` / `decryptFile` | fn | AES-256-GCM helpers |
-| `DEFAULT_CONFIG`, `GRID_OPTIONS`, `INTERVAL_OPTIONS`, `CHUNK_OPTIONS`, `EC_OPTIONS` | const | Sensible presets |
-| `GridSize`, `EcLevel`, `TxConfig`, `FileMeta`, `ParsedPayload`, … | types | Full TypeScript types |
+| Transmit (Canvas) | ✅ | ✅ |
+| Detect — 1×1 grid | ✅ native BarcodeDetector | ✅ jsQR fallback |
+| Detect — 2×2 / 3×3 grids | ✅ native, all codes per frame | ⚠️ jsQR slices by `gridHint`; slower, needs aligned framing |
+| Encryption (Web Crypto) | ✅ | ✅ |
 
-## How it performs
+For phone receivers on jsQR, prefer 1×1 grids, pass `maxDim ≈ 1280` to
+`drawSourceToCanvas`, and transmit with `rotatePerCycle` + `metaEvery`. More
+tuning guidance: [docs/adaptive-tuning.md](docs/adaptive-tuning.md).
 
-Throughput scales with grid density and frame rate until the camera's resolving power becomes the bottleneck. As a rule of thumb: dense grids + short intervals for good cameras at close range; a 1×1 grid at a slower rate for webcams, distance, or poor light. See the research for the measured throughput/reliability envelope.
+## Documentation
+
+- [Getting started](docs/getting-started.md) — install, environments, first transfer
+- [Wire protocol spec](docs/protocol.md)
+- [Adaptive tuning](docs/adaptive-tuning.md) — grid × interval × EC × chunk, capacity tables
+- [Security](docs/security.md) — threat model and crypto details
+- API reference: [protocol](docs/api/protocol.md) ·
+  [framing](docs/api/framing.md) · [tx-engine](docs/api/tx-engine.md) ·
+  [detection](docs/api/detection.md) · [crypto](docs/api/crypto.md) ·
+  [config](docs/api/config.md) · [simulation](docs/api/simulation.md) ·
+  [research utils](docs/api/research-utils.md)
+- Written examples: [vanilla JS](docs/examples/vanilla.md) ·
+  [React hooks](docs/examples/react-hooks.md) ·
+  [Node simulation](docs/examples/node-simulation.md)
+- **Runnable examples** ([examples/](examples/)): [Node scripts](examples/node/) ·
+  [vanilla + Vite](examples/vanilla/) · [React + Vite](examples/react/) —
+  clone, `npm install`, run; no registry token needed
+- [CHANGELOG](CHANGELOG.md)
+
+## Research
+
+This package is the Phase-2 deliverable of a BSc (Hons) Computer Science
+research project at NSBM Green University studying the throughput-vs-
+reliability surface of spatial × temporal QR multiplexing. Until the
+accompanying article is published the package ships as a **private preview on
+GitHub Packages**; the public npmjs.com release follows. The experiment
+harness lives in the [app repository](https://github.com/upekshaip/QR) at
+`/auto/tx` + `/auto/rx`.
 
 ## License
 
-MIT © Upeksha Perera
+[MIT](LICENSE) © Upeksha Indeewara Perera

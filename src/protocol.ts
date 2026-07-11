@@ -15,6 +15,7 @@ import { crc32Hex } from "./crc32";
 import { base64ToBytes, bytesToBase64 } from "./binary";
 import type { FileMeta, ParsedPayload } from "./types";
 
+/** Wire-protocol version tag, carried in every META frame's FileMeta. */
 export const PROTOCOL = "qrstream/1";
 
 /** Split a file's bytes into fixed-size chunks (last chunk may be smaller). */
@@ -28,10 +29,12 @@ export function segment(bytes: Uint8Array, chunkBytes: number): Uint8Array[] {
   return chunks;
 }
 
+/** Build a DATA payload string: `D|seq|total|crc32hex|base64(chunk)`. */
 export function encodeDataPayload(seq: number, total: number, chunk: Uint8Array): string {
   return `D|${seq}|${total}|${crc32Hex(chunk)}|${bytesToBase64(chunk)}`;
 }
 
+/** Build a META payload string: `M|base64(JSON FileMeta)`. */
 export function encodeMetaPayload(meta: FileMeta): string {
   return `M|${bytesToBase64(new TextEncoder().encode(JSON.stringify(meta)))}`;
 }
@@ -59,11 +62,17 @@ export function parsePayload(raw: string): ParsedPayload {
     const p3 = raw.indexOf("|", p2 + 1);
     const p4 = raw.indexOf("|", p3 + 1);
     if (p1 < 0 || p2 < 0 || p3 < 0 || p4 < 0) return { type: "INVALID", raw };
-    const seq = Number(raw.slice(p1 + 1, p2));
-    const total = Number(raw.slice(p2 + 1, p3));
+    const seqStr = raw.slice(p1 + 1, p2);
+    const totalStr = raw.slice(p2 + 1, p3);
     const crc = raw.slice(p3 + 1, p4);
     const b64 = raw.slice(p4 + 1);
-    if (!Number.isInteger(seq) || !Number.isInteger(total)) return { type: "INVALID", raw };
+    // Strict decimal-digit fields: Number() alone coerces "", "1e3", "0x10",
+    // and padded strings into integers a corrupted frame should never yield.
+    if (!/^\d+$/.test(seqStr) || !/^\d+$/.test(totalStr)) return { type: "INVALID", raw };
+    const seq = Number(seqStr);
+    const total = Number(totalStr);
+    if (!Number.isSafeInteger(seq) || !Number.isSafeInteger(total)) return { type: "INVALID", raw };
+    if (total < 1 || seq < 0 || seq >= total) return { type: "INVALID", raw };
     const bytes = base64ToBytes(b64);
     const crcOk = crc32Hex(bytes) === crc;
     return { type: "DATA", seq, total, bytes, crcOk, raw };
@@ -80,14 +89,24 @@ export class Reassembler {
   meta: FileMeta | null = null;
   private chunks = new Map<number, Uint8Array>();
 
+  /**
+   * Record the stream's META. Its total is authoritative: it overwrites any
+   * total seeded from an earlier (possibly garbled) DATA frame, and buffered
+   * chunks outside the corrected range are dropped.
+   */
   setMeta(meta: FileMeta) {
     this.meta = meta;
-    if (this.total === 0) this.total = meta.total;
+    if (Number.isInteger(meta.total) && meta.total > 0 && meta.total !== this.total) {
+      this.total = meta.total;
+      for (const seq of [...this.chunks.keys()]) {
+        if (seq >= meta.total) this.chunks.delete(seq);
+      }
+    }
   }
 
   /** Returns true if this chunk was newly added (not a duplicate). */
   add(seq: number, total: number, bytes: Uint8Array): boolean {
-    if (this.total === 0) this.total = total;
+    if (this.total === 0 && Number.isInteger(total) && total > 0) this.total = total;
     if (seq < 0 || (this.total && seq >= this.total)) return false;
     if (this.chunks.has(seq)) return false;
     this.chunks.set(seq, bytes);

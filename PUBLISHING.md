@@ -1,87 +1,126 @@
-# Publishing qr-stream to npm — step by step
+# Publishing @upekshaip/qr-stream — step by step
 
-A checklist for when the research article is done and you're ready to release. **Nothing here has been done yet** — the package is intentionally `"private": true` so it cannot be published by accident.
+The package ships in two phases:
 
-## 0. One-time setup
+- **Phase A — now:** private preview on **GitHub Packages** as
+  `@upekshaip/qr-stream`, published from the standalone mirror repo
+  [github.com/upekshaip/qr-stream](https://github.com/upekshaip/qr-stream).
+  Installing requires a GitHub token, so nothing is publicly visible while
+  the research article is unfinished.
+- **Phase B — after the article:** public release on **npmjs.com** (keep the
+  scoped name public, or rename to unscoped `qr-stream` if it's still free).
 
-1. Create an npm account at https://www.npmjs.com/signup (free).
-2. Enable 2FA on the account (npm requires it for publishing).
-3. Log in from your terminal:
+The monorepo (`upekshaip/QR`) stays the development home; the app consumes
+the package source directly via a tsconfig path alias. The mirror repo exists
+for releases: repo page, tags, and the publish workflow.
+
+---
+
+## Phase A — private preview on GitHub Packages
+
+### A0. One-time setup
+
+1. Create the private mirror repo (once):
    ```bash
-   npm login
+   gh repo create upekshaip/qr-stream --private
    ```
-   This opens a browser to authenticate. Verify with `npm whoami` → should print your username.
+   (or on github.com → New repository → name `qr-stream` → Private → no README.)
+2. Nothing else — publishing inside the mirror uses the workflow's built-in
+   `GITHUB_TOKEN`; no npm account, no PAT, no secrets to configure.
 
-## 1. Decide the final name
+### A1. Release flow
 
-The unscoped name **`qr-stream` was still available as of 2026-07-02** (registry returned 404). Check again before publishing:
-
-```bash
-npm view qr-stream        # "npm error 404" means it's still free
-```
-
-Options:
-- **`qr-stream`** (unscoped) — short and memorable; first-come-first-served.
-- **`@upekshaip/qr-stream`** (scoped) — can never collide; scoped packages need `--access public` on first publish.
-
-Update the `"name"` field in `packages/qr-stream/package.json` accordingly.
-
-## 2. Pre-flight checks
-
-From the repo root:
+From the monorepo root:
 
 ```bash
-npm run build -w qr-stream      # builds dist/ (esm + cjs + .d.ts)
+npm test                 # green suite
+npm run build            # Next app builds (nothing app-side broke)
+git add -A && git commit # the mirror is built from COMMITTED history
+npm run sync:pkg         # subtree-split packages/qr-stream → mirror main
 ```
 
-Then inspect exactly what would be uploaded (only `dist/` + `README.md` + `package.json` should appear):
+Then in the mirror repo (github.com/upekshaip/qr-stream):
 
-```bash
-cd packages/qr-stream
-npm publish --dry-run
-```
+- **Actions → "Publish to GitHub Packages" → Run workflow**, or tag a
+  release:
+  ```bash
+  git clone https://github.com/upekshaip/qr-stream.git && cd qr-stream
+  git tag v0.1.0 && git push --tags
+  ```
 
-Review the file list and the unpacked size it prints. Nothing sensitive, no source maps you don't want, no stray files.
+The workflow installs, and `npm publish` triggers `prepublishOnly`
+(build + full test suite) before uploading. Verify: the package appears under
+github.com/upekshaip?tab=packages within a minute.
 
-## 3. Flip the safety switch
+### A2. Installing the private package (any machine/project)
 
-In `packages/qr-stream/package.json`, remove the line:
+1. Create a **classic** personal access token with the `read:packages` scope
+   (github.com → Settings → Developer settings → Tokens).
+2. In the consuming project (or `~/.npmrc`):
+   ```ini
+   @upekshaip:registry=https://npm.pkg.github.com
+   //npm.pkg.github.com/:_authToken=YOUR_TOKEN
+   ```
+3. `npm install @upekshaip/qr-stream`
 
-```json
-"private": true,
-```
+The runnable [examples/](examples/) need no token — they use a local `file:`
+dependency on the repo itself.
 
-(That flag exists solely to block accidental publishing while the article is unfinished.)
+### A3. Version bumps (private phase)
 
-## 4. Version
+1. Bump `version` in `package.json` **and** `src/version.ts`
+   (`test/version.test.ts` enforces the sync).
+2. Update `CHANGELOG.md`: new version heading with the date.
+3. Commit → `npm run sync:pkg` → tag/dispatch in the mirror.
 
-The package starts at `0.1.0`. Versioning follows [semver](https://semver.org/):
+Semver applies even privately: `0.x.y` — patch for fixes, minor for
+features; you cannot overwrite an already-published version, ever.
 
-- `0.x.y` — pre-1.0, API may still change
-- **patch** (`0.1.1`): bug fixes → `npm version patch`
-- **minor** (`0.2.0`): new features, backwards compatible → `npm version minor`
-- **major** (`1.0.0`): breaking API changes → `npm version major`
+---
 
-`npm version` also creates a git commit + tag for you.
+## Phase B — public release on npmjs.com (after the article)
 
-## 5. Publish
-
-```bash
-cd packages/qr-stream
-npm publish --access public
-```
-
-(`--access public` is mandatory for scoped names, harmless for unscoped ones. The `prepublishOnly` script runs the build automatically, so you can never publish a stale `dist/`.)
-
-Verify: the package page appears at `https://www.npmjs.com/package/<name>` within a minute, and `npm install <name>` works in a scratch folder.
-
-## 6. After publishing
-
-- Tag the release on GitHub: `git push --follow-tags`, then draft a Release note.
-- Add the npm badge to the README: `[![npm](https://img.shields.io/npm/v/qr-stream)](https://www.npmjs.com/package/qr-stream)`
-- Cite the package name/version in the research article's artifact section.
+1. **Decide the final name.** Check whether the unscoped name is still free:
+   ```bash
+   npm view qr-stream   # "npm error 404" means it's still free
+   ```
+   - `@upekshaip/qr-stream` (public, scoped) — zero code changes, can never
+     collide; needs `--access public` on first publish.
+   - `qr-stream` (unscoped) — shorter; update `name` in `package.json` and
+     the import lines in README/docs/examples.
+2. **One-time npm setup:** account at npmjs.com/signup, enable 2FA,
+   `npm login`, verify with `npm whoami`.
+3. **Point publishes at npmjs:** remove the `publishConfig` block from
+   `package.json` (it currently pins the GitHub registry).
+4. **Pre-flight** (from the monorepo root):
+   ```bash
+   npm run build:lib
+   npm test
+   npm pack --dry-run -w packages/qr-stream
+   ```
+   The pack list must contain **only**: `dist/index.js`, `dist/index.cjs`,
+   `dist/index.d.ts`, `dist/index.d.cts`, `README.md`, `CHANGELOG.md`,
+   `LICENSE`, `package.json`. No source maps, no tests, no examples. The
+   `.d.cts` matters — the `exports` map serves it to CommonJS TypeScript
+   consumers.
+5. **Version + changelog** as in A3 (a public `1.0.0` is a good moment to
+   declare the API stable).
+6. **Publish:**
+   ```bash
+   cd packages/qr-stream
+   npm publish --access public
+   ```
+7. **Afterwards:** sync the mirror and tag the release
+   (`npm run sync:pkg`, then tag in the mirror); add the npm badge to the
+   README (`[![npm](https://img.shields.io/npm/v/@upekshaip/qr-stream)](https://www.npmjs.com/package/@upekshaip/qr-stream)`);
+   cite the exact name/version in the article's artifact section; remove the
+   private-preview note from the README install section.
 
 ## Fixing mistakes
 
-- **Published something broken?** Publish a patch version. You cannot overwrite an existing version — ever.
-- **Need to remove it entirely?** `npm unpublish <name> --force` works only within 72 hours of publish and is discouraged; prefer `npm deprecate <name>@<version> "message"`.
+- **Published something broken?** Publish a patch version — existing
+  versions can never be overwritten (both registries).
+- **Remove a GitHub Packages version:** package page → settings → manage
+  versions (private packages can delete versions freely).
+- **Remove from npmjs:** `npm unpublish` only works within 72 h and is
+  discouraged; prefer `npm deprecate <name>@<version> "message"`.
