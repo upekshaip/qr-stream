@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import { resolve } from "node:path";
 
 export default defineConfig({
-  // don't inherit the monorepo's PostCSS/Tailwind config from parent dirs
+  // don't inherit PostCSS/Tailwind config from parent directories
   css: { postcss: {} },
   build: {
     rollupOptions: {

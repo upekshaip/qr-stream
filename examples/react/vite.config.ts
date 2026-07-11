@@ -3,6 +3,6 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  // don't inherit the monorepo's PostCSS/Tailwind config from parent dirs
+  // don't inherit PostCSS/Tailwind config from parent directories
   css: { postcss: {} },
 });

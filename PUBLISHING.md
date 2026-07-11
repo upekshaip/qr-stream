@@ -3,54 +3,42 @@
 The package ships in two phases:
 
 - **Phase A — now:** private preview on **GitHub Packages** as
-  `@upekshaip/qr-stream`, published from the standalone mirror repo
-  [github.com/upekshaip/qr-stream](https://github.com/upekshaip/qr-stream).
-  Installing requires a GitHub token, so nothing is publicly visible while
-  the research article is unfinished.
+  `@upekshaip/qr-stream`, published from this repo. Installing requires a
+  GitHub token, so nothing is publicly visible while the research article is
+  unfinished.
 - **Phase B — after the article:** public release on **npmjs.com** (keep the
   scoped name public, or rename to unscoped `qr-stream` if it's still free).
 
-The monorepo (`upekshaip/QR`) stays the development home; the app consumes
-the package source directly via a tsconfig path alias. The mirror repo exists
-for releases: repo page, tags, and the publish workflow.
+This repo is the package's development home. The web app
+([github.com/upekshaip/QR](https://github.com/upekshaip/QR), live at
+qr.upekshaip.com) consumes it as an ordinary npm dependency.
 
 ---
 
 ## Phase A — private preview on GitHub Packages
 
-### A0. One-time setup
-
-1. Create the private mirror repo (once):
-   ```bash
-   gh repo create upekshaip/qr-stream --private
-   ```
-   (or on github.com → New repository → name `qr-stream` → Private → no README.)
-2. Nothing else — publishing inside the mirror uses the workflow's built-in
-   `GITHUB_TOKEN`; no npm account, no PAT, no secrets to configure.
-
 ### A1. Release flow
 
-From the monorepo root:
-
 ```bash
-npm test                 # green suite
-npm run build            # Next app builds (nothing app-side broke)
-git add -A && git commit # the mirror is built from COMMITTED history
-npm run sync:pkg         # subtree-split packages/qr-stream → mirror main
+npm install     # once per clone
+npm run build
+npm test        # green suite required — prepublishOnly re-runs it anyway
+git add -A && git commit
+git tag v0.1.1 && git push --follow-tags
 ```
 
-Then in the mirror repo (github.com/upekshaip/qr-stream):
+The tag push triggers the **"Publish to GitHub Packages"** workflow
+(`.github/workflows/publish.yml`), which builds, runs the full test suite via
+`prepublishOnly`, and uploads — using the built-in `GITHUB_TOKEN`, so there
+are no secrets to configure. (You can also run it manually from the Actions
+tab.) Verify: the new version appears under github.com/upekshaip?tab=packages
+within a minute.
 
-- **Actions → "Publish to GitHub Packages" → Run workflow**, or tag a
-  release:
-  ```bash
-  git clone https://github.com/upekshaip/qr-stream.git && cd qr-stream
-  git tag v0.1.0 && git push --tags
-  ```
+After a release, update the app:
 
-The workflow installs, and `npm publish` triggers `prepublishOnly`
-(build + full test suite) before uploading. Verify: the package appears under
-github.com/upekshaip?tab=packages within a minute.
+```bash
+cd <qr-app> && npm update @upekshaip/qr-stream
+```
 
 ### A2. Installing the private package (any machine/project)
 
@@ -71,7 +59,7 @@ dependency on the repo itself.
 1. Bump `version` in `package.json` **and** `src/version.ts`
    (`test/version.test.ts` enforces the sync).
 2. Update `CHANGELOG.md`: new version heading with the date.
-3. Commit → `npm run sync:pkg` → tag/dispatch in the mirror.
+3. Commit → tag `vX.Y.Z` → push with `--follow-tags` (see A1).
 
 Semver applies even privately: `0.x.y` — patch for fixes, minor for
 features; you cannot overwrite an already-published version, ever.
@@ -92,11 +80,11 @@ features; you cannot overwrite an already-published version, ever.
    `npm login`, verify with `npm whoami`.
 3. **Point publishes at npmjs:** remove the `publishConfig` block from
    `package.json` (it currently pins the GitHub registry).
-4. **Pre-flight** (from the monorepo root):
+4. **Pre-flight**:
    ```bash
-   npm run build:lib
+   npm run build
    npm test
-   npm pack --dry-run -w packages/qr-stream
+   npm pack --dry-run
    ```
    The pack list must contain **only**: `dist/index.js`, `dist/index.cjs`,
    `dist/index.d.ts`, `dist/index.d.cts`, `README.md`, `CHANGELOG.md`,
@@ -107,14 +95,14 @@ features; you cannot overwrite an already-published version, ever.
    declare the API stable).
 6. **Publish:**
    ```bash
-   cd packages/qr-stream
    npm publish --access public
    ```
-7. **Afterwards:** sync the mirror and tag the release
-   (`npm run sync:pkg`, then tag in the mirror); add the npm badge to the
-   README (`[![npm](https://img.shields.io/npm/v/@upekshaip/qr-stream)](https://www.npmjs.com/package/@upekshaip/qr-stream)`);
+7. **Afterwards:** tag the release (`git tag vX.Y.Z && git push --follow-tags`);
+   add the npm badge to the README
+   (`[![npm](https://img.shields.io/npm/v/@upekshaip/qr-stream)](https://www.npmjs.com/package/@upekshaip/qr-stream)`);
    cite the exact name/version in the article's artifact section; remove the
-   private-preview note from the README install section.
+   private-preview note from the README install section and drop the
+   `@upekshaip:registry` line from the app's `.npmrc`.
 
 ## Fixing mistakes
 

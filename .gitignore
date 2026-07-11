@@ -1,5 +1,3 @@
-# Standalone-repo ignores: the monorepo root .gitignore does not travel with
-# `git subtree split`, so the package carries its own.
 node_modules
 dist
 *.log

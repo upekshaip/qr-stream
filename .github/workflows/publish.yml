@@ -1,12 +1,7 @@
 # Publishes @upekshaip/qr-stream to GitHub Packages (private registry).
 #
-# This file lives inside the monorepo at packages/qr-stream/.github/ where it
-# is INERT (GitHub only runs workflows from the repo root). After
-# `npm run sync:pkg` mirrors the package to github.com/upekshaip/qr-stream,
-# it sits at the mirror's root and becomes live there.
-#
-# Trigger: push a tag like v0.1.0 to the mirror, or run manually from the
-# Actions tab. GITHUB_TOKEN is enough — same-owner publishes need no PAT.
+# Trigger: push a tag like v0.1.0, or run manually from the Actions tab.
+# GITHUB_TOKEN is enough — same-owner publishes need no PAT.
 name: Publish to GitHub Packages
 
 on:
@@ -27,11 +22,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
           registry-url: https://npm.pkg.github.com
 
-      # The mirror has no lockfile (the monorepo root owns it), so npm install.
       - name: Install
-        run: npm install --no-audit --no-fund
+        run: npm ci
 
       # prepublishOnly runs the build + full test suite before publishing.
       - name: Publish

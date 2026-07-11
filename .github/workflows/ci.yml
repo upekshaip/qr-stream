@@ -1,5 +1,4 @@
-# CI for the standalone package mirror (github.com/upekshaip/qr-stream).
-# Inert inside the monorepo (nested .github); live at the mirror's root.
+# CI: build + test on every push / PR.
 name: CI
 
 on:
@@ -16,9 +15,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install
-        run: npm install --no-audit --no-fund
+        run: npm ci
 
       - name: Build
         run: npm run build
