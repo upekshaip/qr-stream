@@ -1,6 +1,6 @@
 {
   "name": "@upekshaip/qr-stream",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Adaptive QR streaming: offline screen-to-camera file transfer over animated QR codes with configurable grid size, frame interval, CRC32/SHA-256 integrity, and optional AES-256-GCM encryption.",
   "license": "MIT",
   "author": "Upeksha Perera <upekshaip@gmail.com> (https://upekshaip.com)",

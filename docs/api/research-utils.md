@@ -47,3 +47,9 @@ analyses share the exact production ordering logic.
 ## `planStructure(totalChunks, gridSize, metaEvery?)`
 
 Byte-free mirror of `buildFramePlan` (see [simulation.md](simulation.md)).
+
+## Time estimation & campaigns
+
+Cycle/transfer-time estimators, capture-window recommendation, sweep
+wall-clock estimation, and `CampaignSpec` → `RunSpec[]` expansion live in
+[estimate.md](estimate.md).

@@ -3,4 +3,4 @@
  * (a build-time define can't reach consumers that compile from source,
  * e.g. the Next.js app using a tsconfig path alias).
  */
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";

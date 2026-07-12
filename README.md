@@ -31,6 +31,9 @@ Transmission"* — try the live demo at **[qr.upekshaip.com](https://qr.upekshai
   camera required ([docs](docs/api/simulation.md))
 - **Capacity guards** — typed `QrCapacityError` at plan time instead of a
   silent render failure
+- **Time estimation & campaigns** — theoretical transfer-time baseline,
+  capture-window recommendation, and experiment-campaign expansion with
+  wall-clock ETAs ([docs](docs/api/estimate.md))
 
 ## Install
 
@@ -239,6 +242,7 @@ tuning guidance: [docs/adaptive-tuning.md](docs/adaptive-tuning.md).
   [framing](docs/api/framing.md) · [tx-engine](docs/api/tx-engine.md) ·
   [detection](docs/api/detection.md) · [crypto](docs/api/crypto.md) ·
   [config](docs/api/config.md) · [simulation](docs/api/simulation.md) ·
+  [estimation & campaigns](docs/api/estimate.md) ·
   [research utils](docs/api/research-utils.md)
 - Written examples: [vanilla JS](docs/examples/vanilla.md) ·
   [React hooks](docs/examples/react-hooks.md) ·

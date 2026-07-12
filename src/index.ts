@@ -68,6 +68,22 @@ export {
   type ChannelModel,
 } from "./simulate";
 
+// Time estimation + campaign expansion (research + UI planning)
+export {
+  estimateCycle,
+  estimateTransferTimeMs,
+  recommendWindowMs,
+  estimateSweepDurationMs,
+  expandCampaign,
+  estimateCampaignDurationMs,
+  type StreamTimingOptions,
+  type CycleEstimate,
+  type WindowRecommendationOptions,
+  type SweepDurationOptions,
+  type CampaignSpec,
+  type RunSpec,
+} from "./estimate";
+
 // Configuration presets + capacity guards
 export {
   DEFAULT_CONFIG,

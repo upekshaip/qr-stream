@@ -4,6 +4,29 @@ All notable changes to `@upekshaip/qr-stream` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] — 2026-07-12
+
+### Added
+
+- Time-estimation module (`src/estimate.ts`): `estimateCycle` /
+  `estimateTransferTimeMs` — structural cycle breakdown and the theoretical
+  minimum transfer time (one clean pass, META frames included; frame
+  counting delegates to `planStructure` so it cannot drift from the
+  simulator or the engine). Serves as the baseline model for
+  predicted-vs-measured analysis.
+- `recommendWindowMs` — minimum sensible capture window for a measurement
+  run (defaults to two full cycles + slack); guards against windows shorter
+  than one pass, which fail by construction.
+- `estimateSweepDurationMs` — wall-clock cost of a sweep
+  (arm delay + window per run, gaps between runs).
+- Campaign primitives: `CampaignSpec`, `expandCampaign` (stable-order cross
+  product of grids × intervals × chunk sizes × payload sizes × repetitions,
+  with chunk×EC capacity validation and self-describing `testId`s such as
+  `2x2@300ms/c512/p4096#r3`), and `estimateCampaignDurationMs` for ETA
+  displays. CSV schema v2 is unchanged.
+- Docs: `docs/api/estimate.md`; README feature entry; cross-link from
+  `docs/api/research-utils.md`.
+
 ## [0.1.0] — 2026-07-11
 
 Private preview release on GitHub Packages (`@upekshaip/qr-stream`). The
