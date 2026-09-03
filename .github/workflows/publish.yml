@@ -45,14 +45,25 @@ jobs:
       - name: Publish
         # publishConfig.access is "public", so the scoped package is published
         # publicly; --access public is passed anyway to be explicit.
+        #
+        # Skips when the exact name@version is already on the registry, so a
+        # release published by hand (or a re-run of this workflow) does not
+        # fail with E409 — the publish is idempotent rather than order-dependent.
         if: env.NPM_TOKEN != ''
-        run: npm publish --access public --registry=https://registry.npmjs.org
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VER" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
+            echo "$NAME@$VER is already on npmjs — nothing to do."
+          else
+            npm publish --access public --registry=https://registry.npmjs.org
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Skipped
         if: env.NPM_TOKEN == ''
-        run: echo "NPM_TOKEN secret not set — npmjs publish skipped (this release was published manually)."
+        run: echo "NPM_TOKEN secret not set — npmjs publish skipped (publish that half by hand)."
 
   github-packages:
     name: GitHub Packages
@@ -70,6 +81,15 @@ jobs:
         run: npm ci
 
       - name: Publish
-        run: npm publish --registry=https://npm.pkg.github.com
+        # Same idempotency guard as the npmjs job, so re-running the workflow
+        # on an already-published tag is harmless.
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VER" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "$NAME@$VER is already on GitHub Packages — nothing to do."
+          else
+            npm publish --registry=https://npm.pkg.github.com
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
