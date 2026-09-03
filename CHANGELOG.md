@@ -4,6 +4,29 @@ All notable changes to `@upekshaip/qr-stream` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] — 2026-09-01
+
+First **public release on npmjs.com**. The package is no longer a private
+preview: `npm install @upekshaip/qr-stream` needs no registry configuration
+and no token. It continues to be published to GitHub Packages in parallel,
+so existing consumers of that registry keep working unchanged.
+
+There is **no functional change from 0.1.1** — this release changes packaging
+only. The project stays on `0.x` deliberately: the exported surface is not
+frozen yet, and while below 1.0.0 a minor bump may still contain breaking
+changes.
+
+> **Note on version history.** npmjs starts at 0.1.2, while GitHub Packages
+> also carries 0.1.0 and 0.1.1 from the private-preview period. The gap is
+> expected, not a failed publish.
+
+### Changed
+
+- `publishConfig` no longer pins the GitHub Packages registry; it sets
+  `access: "public"` so the scoped package publishes publicly by default.
+- Release workflow publishes to npmjs and GitHub Packages from one `v*` tag.
+- README install instructions and the private-preview notes are removed.
+
 ## [0.1.1] — 2026-07-12
 
 ### Added

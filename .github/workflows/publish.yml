@@ -1,8 +1,17 @@
-# Publishes @upekshaip/qr-stream to GitHub Packages (private registry).
+# Publishes @upekshaip/qr-stream to both registries from one tag.
 #
-# Trigger: push a tag like v0.1.0, or run manually from the Actions tab.
-# GITHUB_TOKEN is enough — same-owner publishes need no PAT.
-name: Publish to GitHub Packages
+# Trigger: push a tag like v0.1.2, or run manually from the Actions tab.
+#
+#   npmjs.com       — the public home of the package. Needs an automation
+#                     token in the NPM_TOKEN repo secret. The job is skipped
+#                     when that secret is absent, so a release still succeeds
+#                     on a clone without it rather than failing the run.
+#   GitHub Packages — kept in parallel for consumers already resolving the
+#                     @upekshaip scope there. GITHUB_TOKEN is enough;
+#                     same-owner publishes need no PAT.
+#
+# Both jobs run prepublishOnly (build + full test suite) before uploading.
+name: Publish
 
 on:
   push:
@@ -14,7 +23,39 @@ permissions:
   packages: write
 
 jobs:
-  publish:
+  npmjs:
+    name: npmjs.com
+    runs-on: ubuntu-latest
+    # The secrets context is not available in a job-level `if`, so the token is
+    # lifted into env here and the publish step is gated on it below.
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        run: npm ci
+
+      - name: Publish
+        # publishConfig.access is "public", so the scoped package is published
+        # publicly; --access public is passed anyway to be explicit.
+        if: env.NPM_TOKEN != ''
+        run: npm publish --access public --registry=https://registry.npmjs.org
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+
+      - name: Skipped
+        if: env.NPM_TOKEN == ''
+        run: echo "NPM_TOKEN secret not set — npmjs publish skipped (this release was published manually)."
+
+  github-packages:
+    name: GitHub Packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -28,8 +69,7 @@ jobs:
       - name: Install
         run: npm ci
 
-      # prepublishOnly runs the build + full test suite before publishing.
       - name: Publish
-        run: npm publish
+        run: npm publish --registry=https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

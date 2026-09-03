@@ -1,5 +1,8 @@
 # @upekshaip/qr-stream
 
+[![npm](https://img.shields.io/npm/v/@upekshaip/qr-stream)](https://www.npmjs.com/package/@upekshaip/qr-stream)
+[![license](https://img.shields.io/npm/l/@upekshaip/qr-stream)](LICENSE)
+
 **Offline screen-to-camera file transfer over animated QR codes.**
 
 One device plays a file as a looping animation of QR codes; another points a
@@ -41,19 +44,13 @@ Transmission"* — try the live demo at **[qr.upekshaip.com](https://qr.upekshai
 npm install @upekshaip/qr-stream
 ```
 
-> **Private preview.** Until the accompanying research article is published,
-> the package is hosted privately on **GitHub Packages**, so installing needs
-> a GitHub personal access token with the `read:packages` scope. Put these
-> two lines in your project's (or user) `.npmrc`, then install normally:
->
-> ```ini
-> @upekshaip:registry=https://npm.pkg.github.com
-> //npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
-> ```
->
-> The runnable [examples](examples/) skip the registry entirely (local
-> `file:` dependency), so a repo clone is enough to try everything. The
-> public npmjs.com release will need no token.
+No registry configuration and no token: the package is public on npmjs.com.
+It is also published to **GitHub Packages** in parallel, for consumers who
+prefer to resolve the `@upekshaip` scope there — map the scope in `.npmrc`
+and authenticate with a `read:packages` token if you want that route.
+
+The runnable [examples](examples/) use a local `file:` dependency, so a repo
+clone is enough to try everything without installing from any registry.
 
 Requires Node ≥ 20 for Node-side use (global Web Crypto). Rendering
 (`TxEngine`, `composeFrame`) and detection (`QrScanner`) need a browser;
@@ -256,9 +253,7 @@ tuning guidance: [docs/adaptive-tuning.md](docs/adaptive-tuning.md).
 
 This package is the Phase-2 deliverable of a BSc (Hons) Computer Science
 research project at NSBM Green University studying the throughput-vs-
-reliability surface of spatial × temporal QR multiplexing. Until the
-accompanying article is published the package ships as a **private preview on
-GitHub Packages**; the public npmjs.com release follows. The experiment
+reliability surface of spatial × temporal QR multiplexing. The experiment
 harness lives in the [app repository](https://github.com/upekshaip/QR) at
 `/auto/tx` + `/auto/rx`.
 
