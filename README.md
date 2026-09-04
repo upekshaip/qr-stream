@@ -15,6 +15,8 @@ unavailable or unwelcome.
 *"An Adaptive QR Streaming Framework for Offline Screen–Camera Data
 Transmission"* — try the live demo at **[qr.upekshaip.com](https://qr.upekshaip.com)**.
 
+📦 **On npm:** [www.npmjs.com/package/@upekshaip/qr-stream](https://www.npmjs.com/package/@upekshaip/qr-stream)
+
 ## Features
 
 - **Self-describing simplex protocol** — every QR carries its own sequence
@@ -44,7 +46,8 @@ Transmission"* — try the live demo at **[qr.upekshaip.com](https://qr.upekshai
 npm install @upekshaip/qr-stream
 ```
 
-No registry configuration and no token: the package is public on npmjs.com.
+No registry configuration and no token: the package is public on
+**[npmjs.com/package/@upekshaip/qr-stream](https://www.npmjs.com/package/@upekshaip/qr-stream)**.
 It is also published to **GitHub Packages** in parallel, for consumers who
 prefer to resolve the `@upekshaip` scope there — map the scope in `.npmrc`
 and authenticate with a `read:packages` token if you want that route.
